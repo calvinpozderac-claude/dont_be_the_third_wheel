@@ -669,3 +669,120 @@ h3 { color: #CC99FF; margin-bottom: 8px; font-size: 1.1rem; }
   .stack-col { min-width: 100px; }
   #setup { padding: 20px 16px; }
 }
+
+/* ── mode select ──────────────────────────────────────────────────────────── */
+
+.mode-grid {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin: 24px 0;
+}
+
+.mode-card {
+  flex: 1;
+  min-width: 180px;
+  max-width: 240px;
+  background: #1a0c2e;
+  border: 2px solid #2e1a50;
+  border-radius: 16px;
+  padding: 24px 18px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color .2s, box-shadow .2s, transform .15s;
+}
+
+.mode-card:hover {
+  border-color: #9960FF;
+  box-shadow: 0 0 18px #9960FF44;
+  transform: translateY(-3px);
+}
+
+.mode-icon { font-size: 2.4rem; margin-bottom: 10px; }
+
+.mode-title { font-size: 1.05rem; font-weight: 800; color: #FFD700; margin-bottom: 6px; }
+
+.mode-desc { font-size: .82rem; color: #998ABB; line-height: 1.4; }
+
+/* ── online setup ─────────────────────────────────────────────────────────── */
+
+.online-options {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin: 16px 0;
+}
+
+.online-option-card {
+  flex: 1;
+  min-width: 160px;
+  max-width: 220px;
+  background: #1a0c2e;
+  border: 2px solid #2e1a50;
+  border-radius: 14px;
+  padding: 20px 14px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color .2s, box-shadow .2s;
+}
+
+.online-option-card:hover { border-color: #9960FF; box-shadow: 0 0 12px #9960FF44; }
+
+.online-option-card.selected { border-color: #FFD700; box-shadow: 0 0 14px #FFD70066; }
+
+/* ── lobby ────────────────────────────────────────────────────────────────── */
+
+.room-code-box {
+  background: #1a0c2e;
+  border: 2px solid #7830FF;
+  border-radius: 16px;
+  padding: 20px 24px;
+  text-align: center;
+  margin: 20px auto;
+  max-width: 340px;
+}
+
+.room-code-label { font-size: .8rem; color: #998ABB; text-transform: uppercase; letter-spacing: .1em; margin-bottom: 6px; }
+
+.room-code-value {
+  font-size: 2.4rem;
+  font-weight: 900;
+  color: #FFD700;
+  letter-spacing: .2em;
+  text-shadow: 0 2px 12px #FFD70066;
+}
+
+.room-code-hint { font-size: .78rem; color: #665588; margin-top: 6px; }
+
+.lobby-slots { display: flex; flex-direction: column; gap: 10px; max-width: 400px; margin: 0 auto; }
+
+.lobby-slot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #16092a;
+  border: 2px solid #2e1a50;
+  border-radius: 10px;
+  padding: 10px 16px;
+}
+
+.joined-badge  { margin-left: auto; background: #1a4030; color: #88FFCC; border-radius: 4px; padding: 2px 8px; font-size: .75rem; font-weight: 700; }
+.waiting-badge { margin-left: auto; background: #2a1248; color: #998ABB; border-radius: 4px; padding: 2px 8px; font-size: .75rem; font-weight: 700; }
+.ai-badge      { margin-left: auto; background: #1a3060; color: #88CCFF; border-radius: 4px; padding: 2px 8px; font-size: .75rem; font-weight: 700; }
+
+/* ── online waiting ───────────────────────────────────────────────────────── */
+
+.online-waiting-box {
+  background: #1a0c2e;
+  border: 1px solid #2e1a50;
+  border-radius: 14px;
+  padding: 32px 24px;
+  text-align: center;
+  max-width: 480px;
+  margin: 20px auto;
+  color: #998ABB;
+}
+
+.online-waiting-box p { font-size: 1rem; line-height: 1.6; }
