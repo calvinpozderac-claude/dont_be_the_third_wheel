@@ -765,8 +765,7 @@ def api_submit_move():
 
     if state["date_submitted_count"] >= 3:
         _finish_date(state, di)
-    else:
-        _process_ai(state)
+    _process_ai(state)
 
     _save(state)
     return jsonify(_enrich(state))

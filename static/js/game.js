@@ -464,15 +464,7 @@ function renderStackCol(stack, si, pending, cpidx) {
   if (pending === "swap_order" && ls.swapStack === null && stack.plays.length >= 2) cls += " swap-target selectable";
   if (pending === "swap_order" && ls.swapStack === si) cls += " swap-target";
 
-  const twPos = twPosAtDate(si);
-  let twNote;
-  if (stack.plays.length === 3) {
-    twNote = `<span class="tw-badge">${pname(stack.plays[twPos].player_idx).substring(0,6)} = 3W</span>`;
-  } else {
-    twNote = `<span class="tw-badge future">${["3rd=3W","2nd=3W","1st=3W"][twPos]}</span>`;
-  }
-
-  const playsHtml  = stack.plays.map((p, pi) => renderPlayCard(p, pi, si, pending, cpidx, twPos)).join("");
+  const playsHtml  = stack.plays.map((p, pi) => renderPlayCard(p, pi, si, pending, cpidx)).join("");
   const emptySlots = 3 - stack.plays.length;
   const emptyHtml  = Array.from({length: emptySlots}, () =>
     `<div class="play-card" style="background:#1e1030;border:1px dashed #2e1a50;min-height:42px;opacity:.4">
@@ -481,12 +473,12 @@ function renderStackCol(stack, si, pending, cpidx) {
 
   return `
 <div class="${cls}" data-stack-id="${stack.id}" data-stack-idx="${si}">
-  <div class="stack-header">Pile ${si + 1} ${twNote}</div>
+  <div class="stack-header">Pile ${si + 1}</div>
   ${playsHtml}${emptyHtml}
 </div>`;
 }
 
-function renderPlayCard(play, pi, si, pending, cpidx, twPos) {
+function renderPlayCard(play, pi, si, pending, cpidx) {
   const bg     = plt(play.player_idx);
   const info   = gs.card_info[play.card_num];
   const active = play.modifier_active;
@@ -494,7 +486,6 @@ function renderPlayCard(play, pi, si, pending, cpidx, twPos) {
   const mLabel = active
     ? (info.type === "bonus" ? "✓ Bonus" : "✗ Debuff")
     : (info.type === "bonus" ? "✕ Bonus off" : "✓ Debuff off");
-  const isTW  = pi === twPos;
   let cls = "play-card";
   if (pending === "swap_order" && si === ls.swapStack) {
     cls += " selectable";
@@ -504,7 +495,6 @@ function renderPlayCard(play, pi, si, pending, cpidx, twPos) {
 
   return `
 <div class="${cls}" style="background:${bg}" data-si="${si}" data-pi="${pi}">
-  ${isTW ? `<div class="tw-play-badge">3W</div>` : ""}
   <span class="arrival-badge">${["1st","2nd","3rd"][pi]}</span>
   <div class="play-card-inner">${pname(play.player_idx).substring(0,8)} · C${play.card_num}${isAI(play.player_idx) ? " 🤖" : ""}</div>
   <div class="play-card-sub">${play.used_action ? "⚡ Action" : "○ Skipped"}</div>
