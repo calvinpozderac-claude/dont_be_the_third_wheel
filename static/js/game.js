@@ -699,134 +699,300 @@ function handleDeactClick(si, pi) {
 /* ══ DATE PHASE ════════════════════════════════════════════════════════════════ */
 
 function renderDatePhase() {
-  const di    = gs.date_phase_idx;
-  const stack = gs.stacks[di];
-  const count = gs.date_submitted_count;
-  const order = gs.date_submission_order;
+  const di       = gs.date_phase_idx;
+  const stack    = gs.stacks[di];
+  const count    = gs.date_submitted_count;
+  const order    = gs.date_submission_order;
   const isOnline = gs.game_mode === "online";
+  const resolved = stack.date_resolved || count >= 3;
 
-  if (stack.date_resolved || count >= 3) {
-    return `<div class="screen">${renderRevealScreen(di)}<div id="toast"></div></div>`;
+  let panelHtml;
+  if (resolved) {
+    panelHtml = renderRevealPanel(di);
+  } else {
+    const submitter = order[count];
+    const peek = gs.date_peek_info;
+    const show = gs.date_show_info;
+
+    if (isOnline && myPlayerIdx !== -1 && myPlayerIdx !== submitter) {
+      panelHtml = `
+<div class="date-panel-inner">
+  <div style="text-align:center;padding:14px 0">
+    <div style="font-size:2rem">⏳</div>
+    <p style="color:#998ABB;margin-top:8px">Waiting for <b style="color:${pc(submitter)}">${pname(submitter)}</b><br>to submit their move for Date ${di + 1}…</p>
+  </div>
+</div>`;
+    } else if (!isOnline && !ls.dateHandoffDone) {
+      panelHtml = renderHandoffPanel(submitter, di);
+    } else if (show && show.player === submitter && show.reveal_to === null && !ls.showTargetDone) {
+      panelHtml = renderShowTargetPanel(submitter, di);
+    } else if (peek && peek.player === submitter && peek.peek_target === null) {
+      panelHtml = renderPeekSelectPanel(submitter, di);
+    } else if (peek && peek.player === submitter && peek.peek_target !== null && !ls.peekChosen) {
+      panelHtml = renderPeekPanel(submitter, peek.peek_target, stack.date_moves[String(peek.peek_target)], di);
+    } else {
+      panelHtml = renderMovePanel(submitter, di);
+    }
   }
 
-  const submitter = order[count];
-  const peek = gs.date_peek_info;
-  const show = gs.date_show_info;
-
-  // Online: not your turn → waiting view
-  if (isOnline && myPlayerIdx !== -1 && myPlayerIdx !== submitter) {
-    return `
-<div class="screen">
-  <div class="online-waiting-box">
-    <div style="font-size:2rem">⏳</div>
-    <p>Waiting for <b style="color:${pc(submitter)}">${pname(submitter)}</b> to submit their move for Date ${di + 1}…</p>
-    ${renderDateInfoCompact(di)}
+  return `
+<div class="screen date-phase-layout">
+  ${renderDateBoard(di, resolved)}
+  <div class="date-main-row">
+    <div class="date-panel-wrap">${panelHtml}</div>
+    <div class="scoring-matrix-wrap">${renderScoringMatrix(di, resolved ? (stack.date_moves || {}) : null)}</div>
   </div>
+  ${renderRunningTotals()}
   <div id="toast"></div>
 </div>`;
-  }
-
-  // Local: handoff screen
-  if (!isOnline && !ls.dateHandoffDone) {
-    return `<div class="screen">${renderHandoffScreen(submitter, di)}<div id="toast"></div></div>`;
-  }
-
-  if (show && show.player === submitter && show.reveal_to === null && !ls.showTargetDone) {
-    return `<div class="screen">${renderShowTargetScreen(submitter, di)}<div id="toast"></div></div>`;
-  }
-  if (peek && peek.player === submitter && peek.peek_target === null) {
-    return `<div class="screen">${renderPeekSelectScreen(submitter, di)}<div id="toast"></div></div>`;
-  }
-  if (peek && peek.player === submitter && peek.peek_target !== null && !ls.peekChosen) {
-    const peekedMove = stack.date_moves[String(peek.peek_target)];
-    return `<div class="screen">${renderPeekScreen(submitter, peek.peek_target, peekedMove, di)}<div id="toast"></div></div>`;
-  }
-  return `<div class="screen">${renderMoveScreen(submitter, di)}<div id="toast"></div></div>`;
 }
 
-function renderHandoffScreen(pidx, di) {
+/* ── board (read-only during date phase) ─── */
+
+function renderDateBoard(di, showResultsOnActive) {
+  const cols = gs.stacks.map((stack, si) => {
+    let cls = "stack-col";
+    if (si === di)        cls += " date-active-pile";
+    else if (si < di)     cls += " date-resolved-pile";
+    else                  cls += " date-future-pile";
+
+    const twPos = twPosAtDate(si);
+    const tw    = stack.plays[twPos];
+    const showResults = si < di || (si === di && showResultsOnActive);
+
+    const headerExtra = stack.plays.length === 3
+      ? ` <span class="tw-badge">${tw ? pname(tw.player_idx).substring(0,6) : "?"} 3W</span>`
+      : "";
+
+    const cardsHtml = stack.plays.map((play, pi) =>
+      renderDateBoardCard(play, pi, stack, si, showResults)
+    ).join("");
+
+    const emptySlots = 3 - stack.plays.length;
+    const emptyHtml  = Array.from({length: emptySlots}, () =>
+      `<div class="play-card" style="background:#1e1030;border:1px dashed #2e1a50;min-height:42px;opacity:.4">
+         <div class="play-card-sub" style="text-align:center;color:#553388">— empty —</div>
+       </div>`).join("");
+
+    return `<div class="${cls}" data-stack-idx="${si}">
+      <div class="stack-header">Pile ${si + 1}${headerExtra}</div>
+      ${cardsHtml}${emptyHtml}
+    </div>`;
+  }).join("");
+
+  return `<div class="date-board-section"><div id="stacks-area" style="margin-bottom:0">${cols}</div></div>`;
+}
+
+function renderDateBoardCard(play, pi, stack, si, showResults) {
+  const bg     = plt(play.player_idx);
+  const info   = gs.card_info[play.card_num];
+  const active = play.modifier_active;
+  const mType  = active ? (info.type === "bonus" ? "bonus" : "debuff") : "off";
+  const mLabel = active
+    ? (info.type === "bonus" ? "✓ Bonus" : "✗ Debuff")
+    : (info.type === "bonus" ? "✕ Bonus off" : "✓ Debuff off");
+
+  let resultOverlay = "";
+  if (showResults && stack.date_moves) {
+    const move  = stack.date_moves[String(play.player_idx)];
+    const score = stack.date_scores ? stack.date_scores[String(play.player_idx)] : null;
+    if (move) {
+      const moveCls = move === "MM" ? "move-mm" : "move-ps";
+      const scStr   = score != null ? (score >= 0 ? `+${score}` : `${score}`) : "";
+      const scCls   = score != null ? (score >= 0 ? "score-pos" : "score-neg") : "";
+      resultOverlay = `<div class="date-result-overlay">
+        <span class="${moveCls}">${move === "MM" ? "💘 MM" : "🛡 PS"}</span>
+        ${score != null ? `<span class="${scCls} result-score">${scStr}</span>` : ""}
+      </div>`;
+    }
+  }
+
+  return `
+<div class="play-card" style="background:${bg}">
+  <span class="arrival-badge">${["1st","2nd","3rd"][pi]}</span>
+  <div class="play-card-inner">${pname(play.player_idx).substring(0,8)} · C${play.card_num}${isAI(play.player_idx) ? " 🤖" : ""}</div>
+  <div class="play-card-sub">${play.used_action ? "⚡ Action" : "○ Skipped"}</div>
+  <div class="modifier-tag ${mType}">${mLabel}</div>
+  ${resultOverlay}
+</div>`;
+}
+
+/* ── scoring matrix ─── */
+
+function renderScoringMatrix(di, actualMoves) {
+  const stack = gs.stacks[di];
+  const plays = stack.plays;
+  const twPos = twPosAtDate(di);
+  const tw    = plays[twPos];
+  const normals = plays.filter((_, i) => i !== twPos);
+
+  const hasCard2Bonus  = plays.some(p => p.modifier_active && p.card_num === 2);
+  const hasCard5Debuff = plays.some(p => p.modifier_active && p.card_num === 5);
+
+  const twMoveScore = hasCard2Bonus ? 0 : hasCard5Debuff ? -4 : -2;
+
+  const ROWS = [
+    ["PS","PS","PS",  0, +1, +1],
+    ["PS","MM","PS",  0, -1, +1],
+    ["PS","PS","MM",  0, +1, -1],
+    ["PS","MM","MM",  0, +2, +2],
+    ["MM","PS","PS", -2, +1, +1],
+    ["MM","MM","PS", +2, +2,  0],
+    ["MM","PS","MM", +2,  0, +2],
+    ["MM","MM","MM", twMoveScore, +2, +2],
+  ];
+
+  let actualRow = -1;
+  if (actualMoves && tw && normals[0] && normals[1]) {
+    const twM  = actualMoves[String(tw.player_idx)];
+    const n1M  = actualMoves[String(normals[0].player_idx)];
+    const n2M  = actualMoves[String(normals[1].player_idx)];
+    if (twM && n1M && n2M)
+      actualRow = ROWS.findIndex(r => r[0] === twM && r[1] === n1M && r[2] === n2M);
+  }
+
+  const mm = m => m === "MM"
+    ? `<span class="move-mm">💘</span>`
+    : `<span class="move-ps">🛡</span>`;
+  const sc = v => `<span class="${v >= 0 ? "score-pos" : "score-neg"}">${v >= 0 ? "+" : ""}${v}</span>`;
+
+  const rowsHtml = ROWS.map((r, idx) => {
+    const [twM, n1M, n2M, twS, n1S, n2S] = r;
+    const cls = idx === actualRow ? " class=\"actual-row\"" : "";
+    return `<tr${cls}>
+      <td>${mm(twM)}</td><td>${mm(n1M)}</td><td>${mm(n2M)}</td>
+      <td>${sc(twS)}</td><td>${sc(n1S)}</td><td>${sc(n2S)}</td>
+    </tr>`;
+  }).join("");
+
+  const twName  = tw       ? pname(tw.player_idx).substring(0, 7)       : "?";
+  const n1Name  = normals[0] ? pname(normals[0].player_idx).substring(0, 7) : "N1";
+  const n2Name  = normals[1] ? pname(normals[1].player_idx).substring(0, 7) : "N2";
+
+  let modNote = "";
+  if (hasCard2Bonus)
+    modNote = `<div class="matrix-mod-note bonus-note">✓ Card 2 Bonus: MM+MM+MM TW = 0</div>`;
+  if (hasCard5Debuff)
+    modNote = `<div class="matrix-mod-note debuff-note">✗ Card 5 Debuff: MM+MM+MM TW = −4</div>`;
+
+  return `
+<div class="scoring-matrix-title">Date ${di + 1} — All Outcomes</div>
+${modNote}
+<table class="scoring-matrix">
+  <thead>
+    <tr>
+      <th colspan="3" style="text-align:center;border-right:1px solid #3a1a60">Moves</th>
+      <th colspan="3" style="text-align:center">Scores</th>
+    </tr>
+    <tr>
+      <th class="tw-col" title="Third Wheel">TW<br><span class="matrix-pname">${twName}</span></th>
+      <th class="n-col">${n1Name}</th>
+      <th class="n-col" style="border-right:1px solid #3a1a60">${n2Name}</th>
+      <th class="tw-col">TW</th>
+      <th class="n-col">N1</th>
+      <th class="n-col">N2</th>
+    </tr>
+  </thead>
+  <tbody>${rowsHtml}</tbody>
+</table>`;
+}
+
+/* ── running totals ─── */
+
+function renderRunningTotals() {
+  const scores = gs.total_scores || [0,0,0];
+  const items  = gs.players.map((p, i) =>
+    `<span class="totals-item" style="color:${pc(i)}">${pname(i)}: <b>${scores[i] >= 0 ? "+" : ""}${scores[i]}</b></span>`
+  ).join("");
+  return `<div class="running-totals-bar">${items}</div>`;
+}
+
+/* ── panel content pieces ─── */
+
+function renderHandoffPanel(pidx, di) {
   const peek = gs.date_peek_info;
   const show = gs.date_show_info;
   let note = "";
   if (show && show.player === pidx)
-    note = `<p style="color:#FF9090;margin-bottom:8px">⚠ You have the <b>SHOW debuff</b> — you'll choose who sees your move first.</p>`;
+    note = `<p style="color:#FF9090;margin:8px 0 0">⚠ You have the <b>SHOW debuff</b> — you'll choose who sees your move first.</p>`;
   if (peek && peek.player === pidx)
-    note = `<p style="color:#AA88FF;margin-bottom:8px">✦ You have the <b>PEEK bonus</b> — you'll see one other player's choice before deciding.</p>`;
+    note = `<p style="color:#AA88FF;margin:8px 0 0">✦ You have the <b>PEEK bonus</b> — you'll see one player's choice before deciding.</p>`;
   return `
-<div class="handoff-screen">
-  <div style="font-size:2.2rem">📱</div>
-  <div class="player-name-big" style="color:${pc(pidx)}">${pname(pidx)}</div>
-  <p>Pass the device to <b>${pname(pidx)}</b>.<br>Everyone else — look away!</p>
+<div class="date-panel-inner" style="text-align:center">
+  <div style="font-size:2rem">📱</div>
+  <div style="font-size:1.5rem;font-weight:900;color:${pc(pidx)};margin:6px 0">${pname(pidx)}</div>
+  <p style="color:#998ABB">Pass to <b>${pname(pidx)}</b>. Everyone else — look away!</p>
   ${note}
-  ${renderDateInfoCompact(di)}
   <br>
   <button class="btn btn-primary" id="btn-handoff-confirm">I'm ${pname(pidx)} — Ready ▶</button>
 </div>`;
 }
 
-function renderShowTargetScreen(pidx, di) {
-  const others = gs.players.map((p, i) => i).filter(i => i !== pidx);
-  const btns   = others.map(i =>
-    `<button class="btn" data-target="${i}" id="show-tgt-${i}" style="background:${pc(i)};color:#fff;margin:6px">
-      Reveal to ${pname(i)}
-    </button>`).join("");
+function renderShowTargetPanel(pidx, di) {
+  const others = gs.players.map((_, i) => i).filter(i => i !== pidx);
+  const btns = others.map(i =>
+    `<button class="btn" data-target="${i}" id="show-tgt-${i}" style="background:${pc(i)};color:#fff;margin:4px">Reveal to ${pname(i)}</button>`
+  ).join("");
   return `
-<div class="move-screen">
-  <div class="date-info-box">
-    <div class="date-num">Date ${di + 1} — Show Debuff</div>
-    <p style="margin-top:8px;color:#FF9090">⚠ <b>Card 6 Debuff:</b> Reveal your choice to one player before they choose.</p>
-    <p style="margin-top:8px;color:#BBAACC">Who will see your move first?</p>
-    <div style="margin-top:10px">${btns}</div>
-  </div>
+<div class="date-panel-inner">
+  <div class="date-num" style="margin-bottom:8px">Date ${di + 1} — Show Debuff</div>
+  <p style="color:#FF9090;margin-bottom:8px">⚠ <b>Card 6:</b> Show your move to one player before they choose.</p>
+  <p style="color:#BBAACC;margin-bottom:10px">Who will see your move first?</p>
+  <div>${btns}</div>
 </div>`;
 }
 
-function renderPeekSelectScreen(pidx, di) {
-  const order   = gs.date_submission_order;
-  const already = order.slice(0, gs.date_submitted_count);
-  if (already.length === 0) return renderMoveScreen(pidx, di);
+function renderPeekSelectPanel(pidx, di) {
+  const already = gs.date_submission_order.slice(0, gs.date_submitted_count);
+  if (already.length === 0) return renderMovePanel(pidx, di);
   const btns = already.map(i =>
-    `<button class="btn btn-blue" data-peek="${i}" id="peek-sel-${i}" style="margin:6px">
-      Peek at ${pname(i)}'s move
-    </button>`).join("");
+    `<button class="btn btn-blue" data-peek="${i}" id="peek-sel-${i}" style="margin:4px">Peek at ${pname(i)}'s move</button>`
+  ).join("");
   return `
-<div class="move-screen">
-  <div class="date-info-box">
-    <div class="date-num">Date ${di + 1} — Peek Bonus</div>
-    <p style="margin-top:8px;color:#AA88FF">✦ <b>Card 3 Bonus:</b> Choose one player's move to peek at before you decide.</p>
-    <div style="margin-top:10px">${btns}</div>
-  </div>
+<div class="date-panel-inner">
+  <div class="date-num" style="margin-bottom:8px">Date ${di + 1} — Peek Bonus</div>
+  <p style="color:#AA88FF;margin-bottom:10px">✦ <b>Card 3:</b> Peek at one player's move before deciding.</p>
+  <div>${btns}</div>
 </div>`;
 }
 
-function renderPeekScreen(pidx, peekTarget, peekedMove, di) {
+function renderPeekPanel(pidx, peekTarget, peekedMove, di) {
   const mLabel = peekedMove === "MM"
-    ? `<span style="color:#6699FF;font-size:1.5rem;font-weight:900">💘 Make a Move (MM)</span>`
-    : `<span style="color:#66CC88;font-size:1.5rem;font-weight:900">🛡 Play it Safe (PS)</span>`;
+    ? `<span style="color:#6699FF;font-size:1.3rem;font-weight:900">💘 Make a Move (MM)</span>`
+    : `<span style="color:#66CC88;font-size:1.3rem;font-weight:900">🛡 Play it Safe (PS)</span>`;
   return `
-<div class="move-screen">
-  <div class="date-info-box">
-    <div class="date-num">Date ${di + 1} — Peeking</div>
-    <p style="margin-top:8px;color:#AA88FF">You peeked at <b style="color:${pc(peekTarget)}">${pname(peekTarget)}</b>'s move:</p>
-    <div style="text-align:center;margin:16px 0">${mLabel}</div>
-    <div style="text-align:center">
-      <button class="btn btn-primary" id="btn-after-peek">Continue to choose →</button>
-    </div>
-  </div>
+<div class="date-panel-inner" style="text-align:center">
+  <div class="date-num" style="margin-bottom:8px">Date ${di + 1} — Peeking</div>
+  <p style="color:#AA88FF;margin-bottom:8px">You peeked at <b style="color:${pc(peekTarget)}">${pname(peekTarget)}</b>'s move:</p>
+  <div style="margin:12px 0">${mLabel}</div>
+  <button class="btn btn-primary" id="btn-after-peek">Continue →</button>
 </div>`;
 }
 
-function renderMoveScreen(pidx, di) {
-  const show = gs.date_show_info;
+function renderMovePanel(pidx, di) {
+  const stack  = gs.stacks[di];
+  const plays  = stack.plays;
+  const twPos  = twPosAtDate(di);
+  const tw     = plays[twPos];
+  const show   = gs.date_show_info;
+  const mods   = renderDateModifiers(di);
+
   let showNote = "";
-  if (show && show.player === pidx && show.reveal_to !== null) {
-    showNote = `<p style="color:#FF9090;margin-bottom:10px">⚠ Remember: show your choice to <b style="color:${pc(show.reveal_to)}">${pname(show.reveal_to)}</b> before they see the reveal!</p>`;
-  }
+  if (show && show.player === pidx && show.reveal_to !== null)
+    showNote = `<p style="color:#FF9090;margin-bottom:8px">⚠ Show your choice to <b style="color:${pc(show.reveal_to)}">${pname(show.reveal_to)}</b> before they see the reveal!</p>`;
+
+  const normals = plays.filter((_, i) => i !== twPos);
+
   return `
-<div class="move-screen">
-  ${renderDateInfoCompact(di)}
+<div class="date-panel-inner">
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">
+    <span class="date-num">Date ${di + 1}</span>
+    <span class="tw-label">3W: ${tw ? pname(tw.player_idx) : "?"}</span>
+    ${normals.map(p => `<span class="normal-label">${pname(p.player_idx)}</span>`).join("")}
+  </div>
+  ${mods}
   ${showNote}
-  <p style="text-align:center;color:#BBAACC;margin-bottom:6px">What will <b style="color:${pc(pidx)}">${pname(pidx)}</b> do?</p>
+  <p style="color:#BBAACC;margin:10px 0 6px;text-align:center">What will <b style="color:${pc(pidx)}">${pname(pidx)}</b> do?</p>
   <div class="move-choices">
     <button class="btn btn-mm" id="btn-mm" data-pidx="${pidx}">💘 Make a Move<br><span style="font-size:.75rem;font-weight:500">(MM)</span></button>
     <button class="btn btn-ps" id="btn-ps" data-pidx="${pidx}">🛡 Play it Safe<br><span style="font-size:.75rem;font-weight:500">(PS)</span></button>
@@ -834,12 +1000,13 @@ function renderMoveScreen(pidx, di) {
 </div>`;
 }
 
-function renderRevealScreen(di) {
+function renderRevealPanel(di) {
   const stack  = gs.stacks[di];
   const plays  = stack.plays;
   const twPos  = twPosAtDate(di);
   const scores = stack.date_scores || {};
   const moves  = stack.date_moves  || {};
+  const mods   = renderDateModifiers(di);
 
   const rows = plays.map((p, i) => {
     const isTW  = i === twPos;
@@ -850,7 +1017,7 @@ function renderRevealScreen(di) {
       : "";
     return `<tr class="${isTW ? "tw-row" : ""}">
       <td><span class="dot" style="background:${pc(p.player_idx)};display:inline-block"></span>
-        ${pname(p.player_idx)}${isAI(p.player_idx) ? " 🤖" : ""} ${isTW ? '<span class="tw-indicator">👀3W</span>' : ""}
+        ${pname(p.player_idx)}${isAI(p.player_idx) ? " 🤖" : ""} ${isTW ? '<span class="tw-indicator">👀 3W</span>' : ""}
       </td>
       <td>${["1st","2nd","3rd"][i]}</td>
       <td class="move-${move.toLowerCase()}">${move === "MM" ? "💘 MM" : "🛡 PS"}</td>
@@ -858,48 +1025,21 @@ function renderRevealScreen(di) {
     </tr>`;
   }).join("");
 
-  const modHtml  = renderDateModifiers(di);
   const nextDi   = di + 1;
   const btnLabel = nextDi < 6 ? `Next Date (${nextDi + 1}) →` : "View Final Scores →";
   const btnCls   = nextDi < 6 ? "btn-primary" : "btn-gold";
 
   return `
-<div class="reveal-screen">
-  <h2 style="text-align:center">Date ${di + 1} Results</h2>
-  ${modHtml}
-  <table class="reveal-table">
+<div class="date-panel-inner">
+  <h2 style="margin-bottom:8px">Date ${di + 1} Results</h2>
+  ${mods}
+  <table class="reveal-table" style="margin-bottom:10px">
     <thead><tr><th>Player</th><th>Arrival</th><th>Move</th><th>Score</th></tr></thead>
     <tbody>${rows}</tbody>
   </table>
-  <div style="padding:8px 12px;background:#1a0c2e;border-radius:8px;font-size:.85rem;color:#BBAACC;margin:10px 0">
-    Running totals: ${gs.players.map((p, i) =>
-      `<span style="color:${pc(i)}">${p.name}: ${gs.total_scores[i] >= 0 ? "+" : ""}${gs.total_scores[i]}</span>`
-    ).join(" · ")}
-  </div>
-  <div style="text-align:center;margin-top:14px">
+  <div style="text-align:center">
     <button class="btn ${btnCls}" id="btn-next-date">${btnLabel}</button>
   </div>
-</div>`;
-}
-
-function renderDateInfoCompact(di) {
-  const stack = gs.stacks[di];
-  const plays = stack.plays;
-  const twPos = twPosAtDate(di);
-  const tw    = plays[twPos];
-  const mods  = renderDateModifiers(di);
-  return `
-<div class="date-info-box" style="margin-bottom:12px">
-  <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
-    <span class="date-num">Date ${di + 1}</span>
-    <span class="tw-label">3rd Wheel: ${tw ? pname(tw.player_idx) : "?"}</span>
-  </div>
-  <div style="font-size:.82rem;color:#BBAACC">
-    ${plays.map((p, i) =>
-      `<span style="color:${pc(p.player_idx)};margin-right:10px">${["1st","2nd","3rd"][i]}: ${pname(p.player_idx)}${i === twPos ? " 👀" : ""}</span>`
-    ).join("")}
-  </div>
-  ${mods}
 </div>`;
 }
 
