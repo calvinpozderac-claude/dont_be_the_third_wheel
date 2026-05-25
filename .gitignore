@@ -4,3 +4,4 @@ __pycache__/
 .env
 rl/checkpoints/
 rl/checkpoints_test/
+rl/checkpoints_v2/
