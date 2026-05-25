@@ -105,13 +105,32 @@ Run after training to check strategic quality:
    Does it PS more when it's the third wheel? Does having a bonus change behaviour?
 5. **Action use rate** — how often does the agent use vs. skip card actions?
 
+## Known training issue: all-PS Nash equilibrium trap
+
+All-PS is a valid Nash equilibrium:
+- TW: PS gives 0; MM gives -2 (if normals PS) or +2 (if exactly one normal MMs) — risky
+- Normal: PS gives +1; MM alone gives -1 — so MM is only good if the other normal also MMs
+
+In vanilla self-play all three agents converge to PS/PS/PS and never explore
+coordinated MM. Two fixes are applied:
+
+1. **Epsilon-greedy date exploration** (`eps_date=0.35` in `train.py`): with 35%
+   probability during self-play, a random MM or PS is chosen instead of MCTS.
+   This forces the agent to experience MM outcomes and learn their value.
+
+2. **Rollout blending in MCTS** (`mcts.py`): leaf evaluations blend 70% network
+   value + 30% random rollout. The random rollout picks random MM/PS moves, so
+   the tree sees realistic MM outcomes even before the network has learned them.
+
 ## What to expect after training
 
 A well-trained agent should show:
-- **Lower card placement entropy** than random: cards 2, 3, 5, 6 placed
-  strategically relative to expected TW position
-- **MM/PS context sensitivity**: significantly higher MM rate as normal (>60%)
-  vs. as third wheel (<40%), and higher MM when card 2 bonus is active
-- **No pile positional advantage**: all 6 pile positions should yield similar
-  average scores (unlike random play where edge effects appear)
-- **Balanced win rates**: ~33% per player (game is symmetric by design)
+- **Lower card placement entropy** than random (2.58b): Card 2 concentrates at
+  pile 4 (2nd-arrival-is-TW dates), Card 4 shifts to late piles to protect its
+  -1 end-game debuff from opponent card-3 activation
+- **MM/PS context sensitivity**: higher MM rate as normal (>55%) vs as TW (<35%),
+  and higher MM rate when card 2 bonus is active (TW safe in MM+MM+MM)
+- **Balanced pile advantage**: TW-Normal gap uniform across all 6 pile positions
+- **Balanced win rates**: ~33% per player
+- **Action skipping pattern**: bonus cards 2/3 kept (modifier preserved);
+  debuff cards 4/6 skipped (debuff avoided); card 1/3 actions used heavily

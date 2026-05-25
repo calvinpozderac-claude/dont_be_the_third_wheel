@@ -147,9 +147,12 @@ class MCTS:
         return best_node
 
     def _evaluate(self, node: MCTSNode):
-        """NN value evaluation (+ random rollout blend for early training)."""
+        """NN value + random rollout blend for better leaf estimation."""
         if node.state.is_terminal():
             return np.array(node.state.final_scores(), dtype=float)
         feat     = featurize(node.state)
         _, value = self.net.predict(feat, node.legal or [])
-        return np.array(value, dtype=float)
+        # Blend with a fast random rollout to avoid value-net blind spots
+        # (especially the all-PS equilibrium trap in the date phase).
+        rollout_val = np.array(random_rollout(node.state), dtype=float)
+        return 0.7 * np.array(value, dtype=float) + 0.3 * rollout_val

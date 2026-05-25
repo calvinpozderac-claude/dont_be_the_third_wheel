@@ -26,9 +26,11 @@ from mcts import MCTS
 
 # ── self-play data generation ─────────────────────────────────────────────────
 
-def self_play_game(mcts: MCTS, temperature_cutoff=18):
+def self_play_game(mcts: MCTS, temperature_cutoff=18, eps_date=0.35):
     """
     Play one game via MCTS self-play.
+    eps_date: probability of using random MM/PS instead of MCTS in date phase,
+              to break the all-PS Nash equilibrium trap.
     Returns list of (feat, pi, player_idx) for each decision step.
     'pi' is a length-N_ACTIONS float32 array (zero for illegal actions).
     """
@@ -41,8 +43,13 @@ def self_play_game(mcts: MCTS, temperature_cutoff=18):
         if not legal:
             break
 
-        temp = 1.0 if step < temperature_cutoff else 0.1
-        action, policy = mcts.best_action(state, temperature=temp, add_noise=(step < 4))
+        # Epsilon-greedy for date phase to prevent all-PS collapse
+        if state.phase == "date_move" and random.random() < eps_date:
+            action  = random.choice(legal)
+            policy  = {a: 1.0 / len(legal) for a in legal}
+        else:
+            temp = 1.0 if step < temperature_cutoff else 0.25
+            action, policy = mcts.best_action(state, temperature=temp, add_noise=(step < 4))
 
         # Store (features, full policy vector, which player moves)
         feat = featurize(state)
