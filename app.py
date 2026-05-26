@@ -751,6 +751,9 @@ def api_submit_move():
     if my_pidx != -1 and my_pidx != pidx:
         return jsonify({"error": "Not your turn to submit"}), 403
 
+    if state.get("game_mode") == "local" and state.get("player_types", [])[pidx:pidx+1] == ["ai"]:
+        return jsonify({"error": "AI players move automatically"}), 400
+
     if pidx != expected:
         return jsonify({
             "error": f"It is {state['players'][expected]['name']}'s turn to submit"

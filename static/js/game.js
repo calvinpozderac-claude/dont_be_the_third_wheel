@@ -722,6 +722,14 @@ function renderDatePhase() {
     <p style="color:#998ABB;margin-top:8px">Waiting for <b style="color:${pc(submitter)}">${pname(submitter)}</b><br>to submit their move for Date ${di + 1}…</p>
   </div>
 </div>`;
+    } else if (!isOnline && isAI(submitter)) {
+      panelHtml = `
+<div class="date-panel-inner">
+  <div style="text-align:center;padding:20px 0">
+    <div style="font-size:2rem">🤖</div>
+    <p style="color:#998ABB;margin-top:8px"><b style="color:${pc(submitter)}">${pname(submitter)}</b> (AI) is choosing…</p>
+  </div>
+</div>`;
     } else if (!isOnline && !ls.dateHandoffDone) {
       panelHtml = renderHandoffPanel(submitter, di);
     } else if (show && show.player === submitter && show.reveal_to === null && !ls.showTargetDone) {
