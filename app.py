@@ -4,6 +4,10 @@ import random
 app = Flask(__name__)
 app.secret_key = "dtbtw-v2-2024"
 
+# Snake-draft turn order: 0,1,2,2,1,0 repeated 3 times (18 total card plays).
+# Players 0→1→2→2→1→0→0→1→2→... instead of simple round-robin.
+_SNAKE = [0, 1, 2, 2, 1, 0] * 3
+
 # ── shared room storage ────────────────────────────────────────────────────────
 
 _rooms = {}
@@ -363,8 +367,8 @@ def _advance_card_turn(state):
         state["phase"] = "date_phase"
         _setup_date(state, 0)
     else:
-        n = len(state["players"])
-        state["current_player_idx"] = (state["current_player_idx"] + 1) % n
+        total_played = sum(len(p["cards_played"]) for p in state["players"])
+        state["current_player_idx"] = _SNAKE[total_played]
     state["pending_action"] = None
     state["action_ctx"]     = {}
 

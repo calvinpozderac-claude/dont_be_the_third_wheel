@@ -17,6 +17,7 @@ from dataclasses import dataclass, field
 # ── constants ─────────────────────────────────────────────────────────────────
 
 N_ACTIONS   = 149
+SNAKE_ORDER = [0, 1, 2, 2, 1, 0] * 3  # 18 turns, snake draft
 CARD_TYPE   = {1:"bonus",2:"bonus",3:"bonus",4:"debuff",5:"debuff",6:"debuff"}
 SWITCH_PAIRS = [(i,j) for i in range(6) for j in range(i+1,6)]  # 15 pairs
 SWAP_PAIRS   = [(0,1),(0,2),(1,2)]                                 # 3 pairs
@@ -351,7 +352,7 @@ def _finish_card_turn(state):
     if total_played == 18:
         _setup_date_phase(state)
     else:
-        state.current_player_idx = (state.current_player_idx + 1) % 3
+        state.current_player_idx = SNAKE_ORDER[total_played]
 
 def _setup_date_phase(state):
     state.phase = "date_move"
