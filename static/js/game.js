@@ -840,9 +840,9 @@ function renderScoringMatrix(di, actualMoves) {
   const twMoveScore = hasCard2Bonus ? 0 : hasCard5Debuff ? -4 : -2;
 
   const ROWS = [
-    ["PS","PS","PS",  0, +1, +1],
-    ["PS","MM","PS",  0, -1, +1],
-    ["PS","PS","MM",  0, +1, -1],
+    ["PS","PS","PS",  0,  0,  0],
+    ["PS","MM","PS",  0,  0,  0],
+    ["PS","PS","MM",  0,  0,  0],
     ["PS","MM","MM",  0, +2, +2],
     ["MM","PS","PS", -2, +1, +1],
     ["MM","MM","PS", +2, +2,  0],
@@ -918,13 +918,22 @@ function renderRunningTotals() {
 /* ── panel content pieces ─── */
 
 function renderHandoffPanel(pidx, di) {
-  const peek = gs.date_peek_info;
-  const show = gs.date_show_info;
+  const peek  = gs.date_peek_info;
+  const show  = gs.date_show_info;
+  const stack = gs.stacks[di];
   let note = "";
   if (show && show.player === pidx)
-    note = `<p style="color:#FF9090;margin:8px 0 0">⚠ You have the <b>SHOW debuff</b> — you'll choose who sees your move first.</p>`;
+    note += `<p style="color:#FF9090;margin:8px 0 0">⚠ You have the <b>SHOW debuff</b> — you'll choose who sees your move first.</p>`;
   if (peek && peek.player === pidx)
-    note = `<p style="color:#AA88FF;margin:8px 0 0">✦ You have the <b>PEEK bonus</b> — you'll see one player's choice before deciding.</p>`;
+    note += `<p style="color:#AA88FF;margin:8px 0 0">✦ You have the <b>PEEK bonus</b> — you'll see one player's choice before deciding.</p>`;
+  if (show && show.reveal_to === pidx) {
+    const shownMove = stack && stack.date_moves && stack.date_moves[String(show.player)];
+    if (shownMove)
+      note += `<div style="background:#2a1a2a;border:1px solid #FF9090;border-radius:8px;padding:10px;margin:8px 0;text-align:center">
+        <p style="color:#FF9090;margin:0 0 4px">⚠ <b style="color:${pc(show.player)}">${pname(show.player)}</b> showed you their move:</p>
+        <div style="font-size:1.3rem;font-weight:900;color:${shownMove === 'MM' ? '#6699FF' : '#66CC88'}">${shownMove === 'MM' ? '💘 Make a Move' : '🛡 Play it Safe'}</div>
+      </div>`;
+  }
   return `
 <div class="date-panel-inner" style="text-align:center">
   <div style="font-size:2rem">📱</div>
@@ -987,7 +996,17 @@ function renderMovePanel(pidx, di) {
 
   let showNote = "";
   if (show && show.player === pidx && show.reveal_to !== null)
-    showNote = `<p style="color:#FF9090;margin-bottom:8px">⚠ Show your choice to <b style="color:${pc(show.reveal_to)}">${pname(show.reveal_to)}</b> before they see the reveal!</p>`;
+    showNote = `<p style="color:#FF9090;margin-bottom:8px">⚠ Show your choice to <b style="color:${pc(show.reveal_to)}">${pname(show.reveal_to)}</b> before they decide!</p>`;
+
+  let revealNote = "";
+  if (show && show.reveal_to === pidx) {
+    const shownMove = stack.date_moves && stack.date_moves[String(show.player)];
+    if (shownMove)
+      revealNote = `<div style="background:#2a1a2a;border:1px solid #FF9090;border-radius:8px;padding:12px;margin-bottom:10px;text-align:center">
+        <p style="color:#FF9090;margin:0 0 6px">⚠ <b style="color:${pc(show.player)}">${pname(show.player)}</b> showed you their move:</p>
+        <div style="font-size:1.3rem;font-weight:900;color:${shownMove === 'MM' ? '#6699FF' : '#66CC88'}">${shownMove === 'MM' ? '💘 Make a Move' : '🛡 Play it Safe'}</div>
+      </div>`;
+  }
 
   const normals = plays.filter((_, i) => i !== twPos);
 
@@ -999,7 +1018,7 @@ function renderMovePanel(pidx, di) {
     ${normals.map(p => `<span class="normal-label">${pname(p.player_idx)}</span>`).join("")}
   </div>
   ${mods}
-  ${showNote}
+  ${revealNote}${showNote}
   <p style="color:#BBAACC;margin:10px 0 6px;text-align:center">What will <b style="color:${pc(pidx)}">${pname(pidx)}</b> do?</p>
   <div class="move-choices">
     <button class="btn btn-mm" id="btn-mm" data-pidx="${pidx}">💘 Make a Move<br><span style="font-size:.75rem;font-weight:500">(MM)</span></button>

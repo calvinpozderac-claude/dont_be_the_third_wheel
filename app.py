@@ -297,9 +297,9 @@ def _score_date(state, di):
     m1 = m.get(str(n1),  "PS")
 
     if tm == "PS":
-        if   m0 == "PS" and m1 == "PS": base = {tw: 0, n0:  1, n1:  1}
-        elif m0 == "MM" and m1 == "PS": base = {tw: 0, n0: -1, n1:  1}
-        elif m0 == "PS" and m1 == "MM": base = {tw: 0, n0:  1, n1: -1}
+        if   m0 == "PS" and m1 == "PS": base = {tw: 0, n0:  0, n1:  0}
+        elif m0 == "MM" and m1 == "PS": base = {tw: 0, n0:  0, n1:  0}
+        elif m0 == "PS" and m1 == "MM": base = {tw: 0, n0:  0, n1:  0}
         else:                           base = {tw: 0, n0:  2, n1:  2}
     else:
         if   m0 == "PS" and m1 == "PS": base = {tw: -2, n0: 1, n1: 1}
