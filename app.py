@@ -345,15 +345,15 @@ def _score_date(state, di):
         else:                           base = {tw: 0, n0:  2, n1:  2}
     else:
         if   m0 == "PS" and m1 == "PS": base = {tw: -2, n0: 1, n1: 1}
-        elif m0 == "MM" and m1 == "PS": base = {tw:  2, n0: 2, n1: 0}
-        elif m0 == "PS" and m1 == "MM": base = {tw:  2, n0: 0, n1: 2}
+        elif m0 == "MM" and m1 == "PS": base = {tw:  2, n0: 1, n1: 0}
+        elif m0 == "PS" and m1 == "MM": base = {tw:  2, n0: 0, n1: 1}
         else:
             tw_score = -2
             for play in plays:
                 if play["player_idx"] == tw and play["modifier_active"]:
                     if   play["card_num"] == 2: tw_score = 0
                     elif play["card_num"] == 5: tw_score = -4
-            base = {tw: tw_score, n0: 2, n1: 2}
+            base = {tw: tw_score, n0: 1, n1: 1}
 
     return base
 
