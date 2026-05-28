@@ -60,9 +60,9 @@ Each player privately and simultaneously chooses **MM** (Make a Move) or **PS** 
 
 | TW  | N1  | N2  | TW  | N1  | N2  |
 |-----|-----|-----|-----|-----|-----|
-| PS  | PS  | PS  | 0   | 0   | 0   |
-| PS  | MM  | PS  | 0   | 0   | 0   |
-| PS  | PS  | MM  | 0   | 0   | 0   |
+| PS  | PS  | PS  | 0   | +1  | +1  |
+| PS  | MM  | PS  | 0   | −1  | +1  |
+| PS  | PS  | MM  | 0   | +1  | −1  |
 | PS  | MM  | MM  | 0   | +2  | +2  |
 | MM  | PS  | PS  | −2  | +1  | +1  |
 | MM  | MM  | PS  | +2  | +2  | 0   |

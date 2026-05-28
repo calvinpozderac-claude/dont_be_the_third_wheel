@@ -840,9 +840,9 @@ function renderScoringMatrix(di, actualMoves) {
   const twMoveScore = hasCard2Bonus ? 0 : hasCard5Debuff ? -4 : -2;
 
   const ROWS = [
-    ["PS","PS","PS",  0,  0,  0],
-    ["PS","MM","PS",  0,  0,  0],
-    ["PS","PS","MM",  0,  0,  0],
+    ["PS","PS","PS",  0, +1, +1],
+    ["PS","MM","PS",  0, -1, +1],
+    ["PS","PS","MM",  0, +1, -1],
     ["PS","MM","MM",  0, +2, +2],
     ["MM","PS","PS", -2, +1, +1],
     ["MM","MM","PS", +2, +2,  0],
