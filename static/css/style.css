@@ -647,6 +647,61 @@ h3 { color: #CC99FF; margin-bottom: 8px; font-size: 1.1rem; }
   font-size: .85rem;
 }
 
+/* ── move log ─────────────────────────────────────────────────────────────── */
+
+.move-log-panel {
+  background: #130920;
+  border: 1px solid #2a1248;
+  border-radius: 12px;
+  padding: 10px 14px;
+  margin-top: 10px;
+  font-size: .8rem;
+}
+
+.move-log-panel > summary {
+  cursor: pointer;
+  color: #998ABB;
+  font-weight: 600;
+  user-select: none;
+  list-style: none;
+}
+
+.move-log-panel > summary:hover { color: #CC99FF; }
+.move-log-panel > summary::marker { display: none; }
+
+.move-log-entries {
+  max-height: 200px;
+  overflow-y: auto;
+  margin-top: 8px;
+}
+
+.log-entry {
+  padding: 4px 0;
+  border-top: 1px solid #1e0c30;
+  line-height: 1.4;
+}
+
+.log-entry:first-child { border-top: none; }
+
+.log-text { font-weight: 600; }
+
+.log-sub {
+  display: block;
+  font-size: .72rem;
+  color: #776699;
+  padding-left: 8px;
+}
+
+/* ── modifier ability text in date board cards ───────────────────────────── */
+
+.modifier-ability {
+  font-size: .60rem;
+  color: rgba(0,0,0,.6);
+  margin-top: 2px;
+  font-weight: 500;
+  line-height: 1.3;
+}
+
 /* ── reference panel ──────────────────────────────────────────────────────── */
 
 #ref-panel {

@@ -13,6 +13,7 @@ let ls = {
   dateHandoffDone: false,
   showTargetDone:  false,
   peekChosen:      false,
+  lastLogLen:      0,
 };
 
 let _pollTimer = null;
@@ -28,6 +29,9 @@ async function api(path, body) {
   if (data.error) { showToast("⚠ " + data.error); return null; }
   gs = data;
   myPlayerIdx = gs.my_player_idx ?? -1;
+  const newLog = gs.move_log || [];
+  newLog.slice(ls.lastLogLen).forEach(e => showToast(e.text));
+  ls.lastLogLen = newLog.length;
   render();
   return data;
 }
@@ -53,6 +57,9 @@ function startPolling() {
       if (data.version !== gs.version) {
         gs = data;
         myPlayerIdx = gs.my_player_idx ?? -1;
+        const newLog = gs.move_log || [];
+        newLog.slice(ls.lastLogLen).forEach(e => showToast(e.text));
+        ls.lastLogLen = newLog.length;
         render();
       }
     } catch (_) {}
@@ -398,6 +405,7 @@ function renderCardPlaying() {
     ${gs.stacks.map((s, si) => renderStackCol(s, si, null, cpidx)).join("")}
     <div class="new-stack-btn unavailable">＋</div>
   </div>
+  ${renderMoveLog()}
   <div id="toast"></div>
   ${renderCardRef()}
 </div>`;
@@ -427,6 +435,7 @@ function renderCardPlaying() {
   </div>
   ${pending ? "" : renderHandArea(cpidx)}
   ${renderActionPanel(pending, cpidx)}
+  ${renderMoveLog()}
   <div id="toast"></div>
   ${renderCardRef()}
 </div>`;
@@ -751,6 +760,7 @@ function renderDatePhase() {
     <div class="scoring-matrix-wrap">${renderScoringMatrix(di, resolved ? (stack.date_moves || {}) : null)}</div>
   </div>
   ${renderRunningTotals()}
+  ${renderMoveLog()}
   <div id="toast"></div>
 </div>`;
 }
@@ -815,12 +825,15 @@ function renderDateBoardCard(play, pi, stack, si, showResults) {
     }
   }
 
+  const abilityHtml = active ? `<div class="modifier-ability">${info.modifier}</div>` : "";
+
   return `
 <div class="play-card" style="background:${bg}">
   <span class="arrival-badge">${["1st","2nd","3rd"][pi]}</span>
   <div class="play-card-inner">${pname(play.player_idx).substring(0,8)} · C${play.card_num}${isAI(play.player_idx) ? " 🤖" : ""}</div>
   <div class="play-card-sub">${play.used_action ? "⚡ Action" : "○ Skipped"}</div>
   <div class="modifier-tag ${mType}">${mLabel}</div>
+  ${abilityHtml}
   ${resultOverlay}
 </div>`;
 }
@@ -1198,6 +1211,25 @@ function renderEnd() {
 </div>`;
 }
 
+/* ══ MOVE LOG ══════════════════════════════════════════════════════════════════ */
+
+function renderMoveLog() {
+  const log = gs.move_log || [];
+  if (!log.length) return "";
+  const entries = [...log].reverse().map(e => {
+    const col = (e.player_idx >= 0 && e.player_idx < gs.players.length) ? pc(e.player_idx) : "#998ABB";
+    return `<div class="log-entry">
+      <span class="log-text" style="color:${col}">${e.text}</span>
+      ${e.sub ? `<span class="log-sub">${e.sub}</span>` : ""}
+    </div>`;
+  }).join("");
+  return `
+<details class="move-log-panel">
+  <summary>📋 Move Log (${log.length})</summary>
+  <div class="move-log-entries">${entries}</div>
+</details>`;
+}
+
 /* ══ CARD REFERENCE ════════════════════════════════════════════════════════════ */
 
 function renderCardRef() {
@@ -1243,7 +1275,8 @@ function renderCardRef() {
 function resetLocalState() {
   ls = { uiStep: "idle", selectedCard: null, selectedDest: null,
          switchFirst: null, swapStack: null, swapFirst: null,
-         dateHandoffDone: false, showTargetDone: false, peekChosen: false };
+         dateHandoffDone: false, showTargetDone: false, peekChosen: false,
+         lastLogLen: 0 };
 }
 
 /* ══ BOOT ══════════════════════════════════════════════════════════════════════ */
@@ -1254,6 +1287,7 @@ async function boot() {
   const data = await fetch("/api/state").then(r => r.json());
   gs = data;
   myPlayerIdx = gs.my_player_idx ?? -1;
+  ls.lastLogLen = (gs.move_log || []).length;
   render();
 
   document.getElementById("app").addEventListener("click", e => {

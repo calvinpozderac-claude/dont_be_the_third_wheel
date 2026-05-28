@@ -54,6 +54,7 @@ def _new_state(room_code):
         "date_show_info":        None,
         "total_scores":          [0, 0, 0],
         "game_over":             False,
+        "move_log":              [],
     }
 
 def _gs():
@@ -99,6 +100,9 @@ def _get_stack_by_id(state, sid):
             return s
     return None
 
+def _pile_index(state, stack_id):
+    return next((i for i, s in enumerate(state["stacks"]) if s["id"] == stack_id), -1)
+
 def _tw_pos(date_idx):
     if date_idx < 2: return 2
     if date_idx < 4: return 1
@@ -113,10 +117,13 @@ def _all_played(state):
 def _ai_resolve_action(state):
     action = state["pending_action"]
     actor  = state["action_ctx"].get("actor", 0)
+    aname  = state["players"][actor]["name"]
+    msg    = None
 
     if action == "switch_piles" and len(state["stacks"]) >= 2:
         i1, i2 = random.sample(range(len(state["stacks"])), 2)
         state["stacks"][i1], state["stacks"][i2] = state["stacks"][i2], state["stacks"][i1]
+        msg = f"Switched pile positions {i1 + 1} and {i2 + 1}!"
 
     elif action == "swap_order":
         valid = [i for i, s in enumerate(state["stacks"]) if len(s["plays"]) >= 2]
@@ -125,6 +132,7 @@ def _ai_resolve_action(state):
             plays = state["stacks"][si]["plays"]
             p1, p2 = random.sample(range(len(plays)), 2)
             plays[p1], plays[p2] = plays[p2], plays[p1]
+            msg = f"Swapped arrival order in pile {si + 1}!"
 
     elif action == "deact_act":
         targets = [
@@ -135,9 +143,17 @@ def _ai_resolve_action(state):
         ]
         if targets:
             si, pi = random.choice(targets)
-            state["stacks"][si]["plays"][pi]["modifier_active"] = \
-                not state["stacks"][si]["plays"][pi]["modifier_active"]
+            tp = state["stacks"][si]["plays"][pi]
+            tp["modifier_active"] = not tp["modifier_active"]
+            tname = state["players"][tp["player_idx"]]["name"]
+            ct    = _card_type(tp["card_num"])
+            if ct == "bonus":
+                msg = f"Deactivated {tname}'s Card {tp['card_num']} bonus!"
+            else:
+                msg = f"Activated {tname}'s Card {tp['card_num']} debuff!"
 
+    if msg:
+        _log(state, actor, f"{aname}: {msg}")
     state["pending_action"] = None
     state["action_ctx"]     = {}
     state["action_message"] = None
@@ -191,6 +207,17 @@ def _ai_play_one(state):
     }
     stack["plays"].append(play)
     player["cards_played_to"].append(actual_sid)
+
+    pile_label = "a new pile" if target in ("new_left", "new_right") else f"Pile {_pile_index(state, actual_sid) + 1}"
+    card_info  = CARD_INFO[card_num]
+    if use_action:
+        mod_note = f"⚡ Used {card_info['action'][:40]}"
+    else:
+        if card_info["type"] == "bonus":
+            mod_note = f"✓ Keeping bonus: {card_info['modifier']}"
+        else:
+            mod_note = f"○ Avoided debuff: {card_info['modifier']}"
+    _log(state, pidx, f"{player['name']}: Card {card_num} → {pile_label}", mod_note)
 
     # pending action resolution
     pending = None
@@ -260,6 +287,18 @@ def _finish_date(state, di):
     stack["date_resolved"] = True
     for pi, sc in scores.items():
         state["total_scores"][pi] += sc
+
+    plays   = stack["plays"]
+    tw_pidx = plays[_tw_pos(di)]["player_idx"]
+    moves   = stack["date_moves"]
+    parts   = " · ".join(
+        f"{state['players'][pi]['name']} {moves.get(str(pi),'?')} "
+        f"{'+' if sc >= 0 else ''}{sc}"
+        for pi, sc in scores.items()
+    )
+    _log(state, -1, f"Date {di + 1}: {parts}",
+         f"3W: {state['players'][tw_pidx]['name']}")
+
     next_di = di + 1
     if next_di >= 6:
         state["phase"]     = "end"
@@ -401,8 +440,19 @@ def _reset_game_fields(state):
     state["date_show_info"]       = None
     state["total_scores"]         = [0, 0, 0]
     state["game_over"]            = False
+    state["move_log"]             = []
     for p in state["players"]:
         p["cards_played_to"] = []
+
+def _log(state, player_idx, text, sub=None):
+    state["move_log"].append({
+        "player_idx": player_idx,
+        "text": text,
+        "sub":  sub,
+    })
+    # cap at 100 entries
+    if len(state["move_log"]) > 100:
+        state["move_log"] = state["move_log"][-100:]
 
 # ── routes ─────────────────────────────────────────────────────────────────────
 
@@ -587,9 +637,22 @@ def api_play_card():
     stack["plays"].append(play)
     player["cards_played_to"].append(actual_sid)
 
+    # ── move log ──────────────────────────────────────────────────────────────
+    pile_label = "a new pile" if target in ("new_left", "new_right") else f"Pile {_pile_index(state, actual_sid) + 1}"
+    card_info  = CARD_INFO[card_num]
+    if use_act:
+        modifier_note = f"⚡ Used {card_info['action'][:40]}"
+    else:
+        if card_info["type"] == "bonus":
+            modifier_note = f"✓ Keeping bonus: {card_info['modifier']}"
+        else:
+            modifier_note = f"○ Avoided debuff: {card_info['modifier']}"
+    _log(state, pidx, f"{player['name']}: Card {card_num} → {pile_label}", modifier_note)
+    # ─────────────────────────────────────────────────────────────────────────
+
     pending = None
     msg     = None
-    ctx     = {"actor": pidx}
+    ctx     = {"actor": pidx, "log_idx": len(state["move_log"]) - 1}
 
     if use_act:
         if card_num in (1, 4):
@@ -694,6 +757,8 @@ def api_resolve_action():
     if err:
         return jsonify({"error": err, **_enrich(state)})
 
+    if msg:
+        _log(state, actor, f"{state['players'][actor]['name']}: {msg}")
     state["action_message"] = msg
     _advance_card_turn(state)
     _process_ai(state)
@@ -703,6 +768,8 @@ def api_resolve_action():
 @app.route("/api/cancel_action", methods=["POST"])
 def api_cancel_action():
     state = _gs()
+    actor = state["action_ctx"].get("actor", state["current_player_idx"])
+    _log(state, actor, f"{state['players'][actor]['name']}: skipped action")
     state["action_message"] = "Action skipped."
     _advance_card_turn(state)
     _process_ai(state)
