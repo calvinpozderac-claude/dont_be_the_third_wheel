@@ -881,9 +881,9 @@ function renderScoringMatrix(di, actualMoves) {
     ["PS","PS","MM",  0, +1, -1],
     ["PS","MM","MM",  0, +2, +2],
     ["MM","PS","PS", -2, +1, +1],
-    ["MM","MM","PS", +2, +2,  0],
-    ["MM","PS","MM", +2,  0, +2],
-    ["MM","MM","MM", twMoveScore, +2, +2],
+    ["MM","MM","PS", +2, +1,  0],
+    ["MM","PS","MM", +2,  0, +1],
+    ["MM","MM","MM", twMoveScore, +1, +1],
   ];
 
   let actualRow = -1;
