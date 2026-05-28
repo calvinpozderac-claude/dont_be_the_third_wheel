@@ -405,6 +405,7 @@ function renderCardPlaying() {
     ${gs.stacks.map((s, si) => renderStackCol(s, si, null, cpidx)).join("")}
     <div class="new-stack-btn unavailable">＋</div>
   </div>
+  ${myPlayerIdx >= 0 ? renderReadOnlyHand(myPlayerIdx, `Your Cards (${pname(myPlayerIdx)})`) : ""}
   ${renderMoveLog()}
   <div id="toast"></div>
   ${renderCardRef()}
@@ -433,7 +434,7 @@ function renderCardPlaying() {
     ${gs.stacks.map((s, si) => renderStackCol(s, si, pending, cpidx)).join("")}
     <div class="new-stack-btn${canNew ? "" : " unavailable"}" id="btn-new-right">＋</div>
   </div>
-  ${pending ? "" : renderHandArea(cpidx)}
+  ${pending ? renderReadOnlyHand(cpidx, `${pname(cpidx)}'s Remaining Cards`) : renderHandArea(cpidx)}
   ${renderActionPanel(pending, cpidx)}
   ${renderMoveLog()}
   <div id="toast"></div>
@@ -452,6 +453,28 @@ function getPlayedCards(pidx) {
   const cards = [];
   gs.stacks.forEach(s => s.plays.forEach(p => { if (p.player_idx === pidx) cards.push(p.card_num); }));
   return cards;
+}
+
+function renderReadOnlyHand(pidx, label) {
+  const played    = getPlayedCards(pidx);
+  const remaining = [1,2,3,4,5,6].filter(cn => !played.includes(cn));
+  if (!remaining.length) return "";
+  const cards = remaining.map(cn => {
+    const info = gs.card_info[cn];
+    const mCls = info.type === "bonus" ? "bonus" : "debuff";
+    return `
+<div class="hand-card" style="background:${plt(pidx)};pointer-events:none;cursor:default">
+  <div class="hand-card-type">${info.type.toUpperCase()}</div>
+  <div class="hand-card-num">${cn}</div>
+  <div class="hand-card-action">${info.action}</div>
+  <div class="hand-card-mod ${mCls}">${info.type === "bonus" ? "B: " : "D: "}${info.modifier}</div>
+</div>`;
+  }).join("");
+  return `
+<div id="hand-area">
+  <h3 style="color:${pc(pidx)}">${label}</h3>
+  <div class="hand-cards">${cards}</div>
+</div>`;
 }
 
 function twPosAtDate(di) {
