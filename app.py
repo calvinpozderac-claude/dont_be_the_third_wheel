@@ -30,6 +30,9 @@ PLAYER_COLORS = ["#E05555", "#5578E0", "#3DC470"]
 PLAYER_DARK   = ["#8B2020", "#203070", "#1A7035"]
 PLAYER_LIGHT  = ["#FFCCCC", "#CCE0FF", "#C8FFDC"]
 
+# Snake draft: 0,1,2,2,1,0 repeating → each player gets 6 turns over 18 picks
+SNAKE_ORDER = [0, 1, 2, 2, 1, 0]
+
 # ── state helpers ──────────────────────────────────────────────────────────────
 
 def _new_state(room_code):
@@ -402,8 +405,8 @@ def _advance_card_turn(state):
         state["phase"] = "date_phase"
         _setup_date(state, 0)
     else:
-        n = len(state["players"])
-        state["current_player_idx"] = (state["current_player_idx"] + 1) % n
+        total_played = sum(len(s["plays"]) for s in state["stacks"])
+        state["current_player_idx"] = SNAKE_ORDER[total_played % len(SNAKE_ORDER)]
     state["pending_action"] = None
     state["action_ctx"]     = {}
 
