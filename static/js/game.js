@@ -117,7 +117,7 @@ function render() {
 function renderModeSelect() {
   return `
 <div class="screen">
-<div class="title">💔 Don't Be The Third Wheel!</div>
+<div class="title">Three's a Crowd</div>
 <div class="subtitle">A game of dates, strategy &amp; sabotage — 3 players</div>
 <div class="mode-grid">
 
@@ -394,7 +394,7 @@ function renderCardPlaying() {
   if (isOnline && !isMyTurn) {
     return `
 <div class="screen">
-  <div class="title" style="font-size:1.3rem;margin-bottom:6px">Don't Be The Third Wheel!</div>
+  <div class="title" style="font-size:1.3rem;margin-bottom:6px">Three's a Crowd</div>
   ${renderStatusBar()}
   <div class="online-waiting-box">
     <div style="font-size:2rem">⏳</div>
@@ -426,7 +426,7 @@ function renderCardPlaying() {
   const canNew = canCreateNew();
   return `
 <div class="screen">
-  <div class="title" style="font-size:1.3rem;margin-bottom:6px">Don't Be The Third Wheel!</div>
+  <div class="title" style="font-size:1.3rem;margin-bottom:6px">Three's a Crowd</div>
   ${renderStatusBar()}
   <div id="msg-bar">${instruction}</div>
   <div id="stacks-area">
@@ -870,20 +870,15 @@ function renderScoringMatrix(di, actualMoves) {
   const tw    = plays[twPos];
   const normals = plays.filter((_, i) => i !== twPos);
 
-  const hasCard2Bonus  = plays.some(p => p.modifier_active && p.card_num === 2);
-  const hasCard5Debuff = plays.some(p => p.modifier_active && p.card_num === 5);
-
-  const twMoveScore = hasCard2Bonus ? 0 : hasCard5Debuff ? -4 : -2;
-
   const ROWS = [
     ["PS","PS","PS",  0, +1, +1],
     ["PS","MM","PS",  0, -1, +1],
     ["PS","PS","MM",  0, +1, -1],
     ["PS","MM","MM",  0, +2, +2],
     ["MM","PS","PS", -2, +1, +1],
-    ["MM","MM","PS", +2, +2,  0],
-    ["MM","PS","MM", +2,  0, +2],
-    ["MM","MM","MM", twMoveScore, +2, +2],
+    ["MM","MM","PS", +2, +1,  0],
+    ["MM","PS","MM", +2,  0, +1],
+    ["MM","MM","MM", -2, +1, +1],
   ];
 
   let actualRow = -1;
@@ -914,10 +909,14 @@ function renderScoringMatrix(di, actualMoves) {
   const n2Name  = normals[1] ? pname(normals[1].player_idx).substring(0, 7) : "N2";
 
   let modNote = "";
-  if (hasCard2Bonus)
-    modNote = `<div class="matrix-mod-note bonus-note">✓ Card 2 Bonus: MM+MM+MM TW = 0</div>`;
-  if (hasCard5Debuff)
-    modNote = `<div class="matrix-mod-note debuff-note">✗ Card 5 Debuff: MM+MM+MM TW = −4</div>`;
+  plays.forEach(p => {
+    if (!p.modifier_active) return;
+    const name = pname(p.player_idx).substring(0, 10);
+    if (p.card_num === 2)
+      modNote += `<div class="matrix-mod-note bonus-note">✓ Card 2 (${name}): score × 2</div>`;
+    if (p.card_num === 5)
+      modNote += `<div class="matrix-mod-note debuff-note">✗ Card 5 (${name}): score ÷ 2</div>`;
+  });
 
   return `
 <div class="scoring-matrix-title">Date ${di + 1} — All Outcomes</div>
@@ -1217,7 +1216,7 @@ function renderEnd() {
   return `
 <div class="screen">
   <div id="end-screen">
-    <div class="title">💔 Game Over!</div>
+    <div class="title">Three's a Crowd — Game Over!</div>
     <div class="subtitle">Final standings</div>
     <div class="podium">${podium}</div>
     <div class="score-breakdown">
@@ -1282,10 +1281,11 @@ function renderCardRef() {
       <div class="sl">PS</div><div class="sl">MM</div><div class="sl">PS</div><div class="sr">0 / −1 / +1</div>
       <div class="sl">PS</div><div class="sl">MM</div><div class="sl">MM</div><div class="sr">0 / +2 / +2</div>
       <div class="sl">MM</div><div class="sl">PS</div><div class="sl">PS</div><div class="sr">−2 / +1 / +1</div>
-      <div class="sl">MM</div><div class="sl">MM</div><div class="sl">PS</div><div class="sr">+2 / +2 / 0</div>
-      <div class="sl">MM</div><div class="sl">MM</div><div class="sl">MM</div><div class="sr">−2\* / +2 / +2</div>
+      <div class="sl">MM</div><div class="sl">MM</div><div class="sl">PS</div><div class="sr">+2 / +1 / 0</div>
+      <div class="sl">MM</div><div class="sl">PS</div><div class="sl">MM</div><div class="sr">+2 / 0 / +1</div>
+      <div class="sl">MM</div><div class="sl">MM</div><div class="sl">MM</div><div class="sr">−2 / +1 / +1</div>
     </div>
-    <div style="color:#998ABB;font-size:.72rem;margin-top:3px">\*C2 Bonus → TW scores 0 · C5 Debuff → TW scores −4</div>
+    <div style="color:#998ABB;font-size:.72rem;margin-top:3px">C2 Bonus: your score × 2 · C5 Debuff: your score ÷ 2</div>
   </div>
   <div class="ref-section" style="margin-top:6px;font-size:.75rem;color:#998ABB">
     <b>Third Wheel rule:</b> Piles 1–2 → 3rd arrival is 3W · Piles 3–4 → 2nd arrival · Piles 5–6 → 1st arrival

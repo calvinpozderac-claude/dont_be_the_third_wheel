@@ -18,11 +18,11 @@ def _gen_code():
 # ── card definitions ───────────────────────────────────────────────────────────
 
 CARD_INFO = {
-    1: {"type": "bonus",  "action": "Switch any two date piles",                                                          "modifier": "+1 point at end of game",                                    "modifier_type": "global_plus"},
-    2: {"type": "bonus",  "action": "Swap the arrival order of any two cards in a date pile",                             "modifier": "If third wheel in MM+MM+MM: score 0 instead of −2",          "modifier_type": "tw_protect"},
+    1: {"type": "bonus",  "action": "Switch any two date piles",                                                          "modifier": "+1 point at end of game",                                     "modifier_type": "global_plus"},
+    2: {"type": "bonus",  "action": "Swap the arrival order of any two cards in a date pile",                             "modifier": "Multiply your score × 2 this date",                           "modifier_type": "score_x2"},
     3: {"type": "bonus",  "action": "Deactivate an opponent's active bonus, or activate an opponent's avoided debuff",    "modifier": "Peek at one other player's move before choosing yours this date", "modifier_type": "peek"},
-    4: {"type": "debuff", "action": "Switch any two date piles",                                                          "modifier": "−1 point at end of game",                                    "modifier_type": "global_minus"},
-    5: {"type": "debuff", "action": "Swap the arrival order of any two cards in a date pile",                             "modifier": "If third wheel in MM+MM+MM: score −4 instead of −2",         "modifier_type": "tw_double"},
+    4: {"type": "debuff", "action": "Switch any two date piles",                                                          "modifier": "−1 point at end of game",                                     "modifier_type": "global_minus"},
+    5: {"type": "debuff", "action": "Swap the arrival order of any two cards in a date pile",                             "modifier": "Divide your score ÷ 2 (round down) this date",                "modifier_type": "score_halve"},
     6: {"type": "debuff", "action": "Deactivate an opponent's active bonus, or activate an opponent's avoided debuff",    "modifier": "Must show your move to one player before they choose this date", "modifier_type": "show"},
 }
 
@@ -344,16 +344,17 @@ def _score_date(state, di):
         elif m0 == "PS" and m1 == "MM": base = {tw: 0, n0:  1, n1: -1}
         else:                           base = {tw: 0, n0:  2, n1:  2}
     else:
-        if   m0 == "PS" and m1 == "PS": base = {tw: -2, n0: 1, n1: 1}
-        elif m0 == "MM" and m1 == "PS": base = {tw:  2, n0: 2, n1: 0}
-        elif m0 == "PS" and m1 == "MM": base = {tw:  2, n0: 0, n1: 2}
-        else:
-            tw_score = -2
-            for play in plays:
-                if play["player_idx"] == tw and play["modifier_active"]:
-                    if   play["card_num"] == 2: tw_score = 0
-                    elif play["card_num"] == 5: tw_score = -4
-            base = {tw: tw_score, n0: 2, n1: 2}
+        if   m0 == "PS" and m1 == "PS": base = {tw: -2, n0:  1, n1:  1}
+        elif m0 == "MM" and m1 == "PS": base = {tw:  2, n0:  1, n1:  0}
+        elif m0 == "PS" and m1 == "MM": base = {tw:  2, n0:  0, n1:  1}
+        else:                           base = {tw: -2, n0:  1, n1:  1}
+
+    # card 2 (bonus): multiply holder's score × 2; card 5 (debuff): divide ÷ 2 (floor)
+    for play in plays:
+        pi = play["player_idx"]
+        if play["modifier_active"]:
+            if   play["card_num"] == 2: base[pi] = base[pi] * 2
+            elif play["card_num"] == 5: base[pi] = base[pi] // 2
 
     return base
 
